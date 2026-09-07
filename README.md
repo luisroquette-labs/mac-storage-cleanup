@@ -1,5 +1,7 @@
 # Mac Storage Cleanup — paid Codex skill
 
+**Current release: [v1.1.0](CHANGELOG.md#110---2026-09-07)** · [Changelog](CHANGELOG.md)
+
 <p align="center">
   <img src="assets/hero.svg" alt="Mac Storage Cleanup hero" width="900">
 </p>
@@ -22,7 +24,9 @@
 
 It focuses only on the highest-risk storage waste for developers and power users:
 
-- Project artifacts (`.next`, `node_modules`) that can be regenerated
+- Project artifacts across five ecosystems that can be regenerated
+  (`.next`, `node_modules`, `dist`, `build`, `target`, `.venv`, `venv`,
+  `.turbo`, `.parcel-cache`, `.pytest_cache`, `.gradle`, `Pods`)
 - Exact duplicate files found by hash
 - Recovery-safe staging before final cleanup
 
@@ -54,11 +58,19 @@ You see exact targets, process state, manifest check, and estimated gain before 
 - Any protected/inconsistent state aborts the run
 
 ### D) Scope discipline
-Only two generated targets are eligible by default:
-- `.next`
-- `node_modules`
+Only exact, named generated-artifact directories are eligible — 12 across
+JS/TS, Python, Rust, Java/Gradle, and iOS. No broad folders, no wildcard
+cleanups. A target whose project root is a live, continuously developed
+repo (not a git worktree or scratch checkout) is refused unless you pass
+`--allow-live-project`. A target still symlinked from another worktree is
+refused unless you pass `--allow-breaking-symlinks`.
 
-No broad folders, no wildcard cleanups.
+### E) Pressure-tiered discovery
+`scan_deep.py` reads current disk usage first and only widens its sweep as
+pressure rises (tranquilo/atenção/aperto/crítico/emergência). It walks the
+whole home tree, dotfolders included, and classifies every hit before
+anything is proposed for deletion — see [CHANGELOG](CHANGELOG.md) for the
+full classification rules.
 
 ## 4) Installation (2 minutes)
 
@@ -71,7 +83,14 @@ cat SHA256SUMS
 
 ## 5) Quick usage
 
-Dry-run first:
+Scan first — read-only, prints a ready-to-copy dry-run command for whatever it finds:
+
+```bash
+python3 mac-storage-cleanup/scripts/scan_deep.py
+python3 mac-storage-cleanup/scripts/scan_deep.py --protect /absolute/critical/folder
+```
+
+Then dry-run the approved targets:
 
 ```bash
 python3 mac-storage-cleanup/scripts/safe_generated_cleanup.py \
@@ -85,6 +104,12 @@ python3 mac-storage-cleanup/scripts/safe_generated_cleanup.py \
   --apply --protect /absolute/critical/folder \
   /absolute/project/.next /absolute/project/node_modules
 ```
+
+Exit codes: `2` active process blocked the run · `3` recoverable staging/Finder
+step failed · `4` target outside a worktree/scratch checkout (pass
+`--allow-live-project` if intentional) · `5` target still referenced by
+another worktree's symlink (pass `--allow-breaking-symlinks` if intentional)
+· `6` an approved target vanished before it could be moved (rerun the scan).
 
 Discover exact duplicates (read-only):
 
